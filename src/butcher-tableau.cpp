@@ -2,7 +2,7 @@
 #include <vector>
 
 // --- Imlplicity check ---
-bool checkImplicit(const std::vector<std::vector<double>> A) {
+bool checkImplicit(std::vector<std::vector<double>> A) {
   size_t s = A.size();
   for (size_t i = 0; i < s; ++i) {
     for (size_t j = i; j < s; ++j) {
@@ -14,9 +14,11 @@ bool checkImplicit(const std::vector<std::vector<double>> A) {
 }
 // --- Constructor ---
 ButcherTableau::ButcherTableau(std::vector<std::vector<double>> A_,
-                               std::vector<double> b_, std::vector<double> c_)
-    : A(std::move(A_)), b(std::move(b_)), c(std::move(c_)) {
-  implicit = isImplicit(A);
+                               std::vector<double> b_, std::vector<double> c_) {
+  implicit = checkImplicit(A_);
+  A = std::move(A_);
+  b = std::move(b_);
+  c = std::move(c_);
 }
 
 // --- Getters ---
@@ -55,4 +57,36 @@ bool ButcherTableau::isSymplectic() const {
   return true;
 }
 
-namespace methods {}
+namespace methods {
+
+// second order explicit methods
+const ButcherTableau Heun_tableau({{0.0, 0.0}, {1.0, 0.0}}, {0.5, 0.5},
+                                  {0.0, 1.0});
+
+// second order implicit methods
+const ButcherTableau Trapezoidal_tableau({{0.0, 0.0}, {0.5, 0.5}}, {0.5, 0.5},
+                                         {0.0, 1.0});
+
+const ButcherTableau Implicit_midpoint_tableau({{0.5}}, {1.0}, {0.5});
+// forth order explicit methods
+const ButcherTableau RK4_tableau({{0.0, 0.0, 0.0, 0.0},
+                                  {0.5, 0.0, 0.0, 0.0},
+                                  {0.0, 0.5, 0.0, 0.0},
+                                  {0.0, 0.0, 1.0, 0.0}},
+                                 {
+
+                                     1.0 / 6.0, 1.0 / 3.0, 1.0 / 3.0,
+                                     1.0 / 6.0},
+                                 {0.0, 0.5, 0.5, 1.0});
+
+// forth order implicit methods
+const ButcherTableau Gauss_Legendre_tableau(
+    {{0.25, 0.25 - std::sqrt(3.0) / 6.0}, {0.25 + std::sqrt(3.0) / 6.0, 0.25}},
+    {0.5, 0.5}, {0.5 - std::sqrt(3.0) / 6.0, 0.5 + std::sqrt(3.0) / 6.0});
+
+const ButcherTableau LobattoIIIA_tableau({{0.0, 0.0, 0.0},
+                                          {5.0 / 24.0, 1.0 / 3.0, -1.0 / 24.0},
+                                          {1.0 / 6.0, 2.0 / 3.0, 1.0 / 6.0}},
+                                         {1.0 / 6.0, 2.0 / 3.0, 1.0 / 6.0},
+                                         {0.0, 0.5, 1.0});
+} // namespace methods

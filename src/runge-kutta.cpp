@@ -6,8 +6,7 @@ namespace rungekutta {
 std::vector<std::vector<double>> runge_kutta(
     const ButcherTableau &table,
     const std::function<std::vector<double>(const std::vector<double> &)> &f,
-    std::vector<double> y0, double t0, double dt, size_t steps,
-    int max_iter = 10) {
+    std::vector<double> y0, double t0, double dt, size_t steps, int max_iter) {
   std::vector<std::vector<double>> results;
   results.push_back(y0);
 
@@ -71,3 +70,54 @@ std::vector<std::vector<double>> runge_kutta(
   return results;
 }
 } // namespace rungekutta
+
+namespace methods {
+// concrete method computators
+//
+// second order explicit RK methods
+std::vector<std::vector<double>> Heun_method(
+    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    std::vector<double> y0, double t0, double dt, size_t steps, int max_iter) {
+  return rungekutta::runge_kutta(methods::Heun_tableau, f, y0, t0, dt, steps,
+                                 max_iter);
+}
+
+// second order implicit RK methods
+std::vector<std::vector<double>> Trapezoidal_method(
+    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    std::vector<double> y0, double t0, double dt, size_t steps, int max_iter) {
+  return rungekutta::runge_kutta(methods::Trapezoidal_tableau, f, y0, t0, dt,
+                                 steps, max_iter);
+}
+
+std::vector<std::vector<double>> Implicit_midpoint_method(
+    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    std::vector<double> y0, double t0, double dt, size_t steps, int max_iter) {
+  return rungekutta::runge_kutta(methods::Implicit_midpoint_tableau, f, y0, t0,
+                                 dt, steps, max_iter);
+}
+
+// forth order explicit RK methods
+std::vector<std::vector<double>> RK4_method(
+    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    std::vector<double> y0, double t0, double dt, size_t steps, int max_iter) {
+  return rungekutta::runge_kutta(methods::RK4_tableau, f, y0, t0, dt, steps,
+                                 max_iter);
+}
+
+// forth order implicit RK methods
+std::vector<std::vector<double>> LobattoIIIA_method(
+    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    std::vector<double> y0, double t0, double dt, size_t steps, int max_iter) {
+  return rungekutta::runge_kutta(methods::LobattoIIIA_tableau, f, y0, t0, dt,
+                                 steps, max_iter);
+}
+
+std::vector<std::vector<double>> Gauss_Legendre_method(
+    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    std::vector<double> y0, double t0, double dt, size_t steps, int max_iter) {
+  return rungekutta::runge_kutta(methods::Gauss_Legendre_tableau, f, y0, t0, dt,
+                                 steps, max_iter);
+}
+
+} // namespace methods
