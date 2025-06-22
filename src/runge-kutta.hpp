@@ -38,7 +38,8 @@ namespace rungekutta {
 
 std::vector<std::vector<double>> runge_kutta(
     const ButcherTableau &table,
-    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    const std::function<std::vector<double>(double,
+                                            const std::vector<double> &)> &f,
     std::vector<double> y0, double t0, double dt, size_t steps,
     int max_iter = 10);
 }
@@ -65,34 +66,40 @@ extern const ButcherTableau Gauss_Legendre_tableau;
 //
 // second order explicit RK methods
 std::vector<std::vector<double>> Heun_method(
-    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    const std::function<std::vector<double>(double,
+                                            const std::vector<double> &)> &f,
     std::vector<double> y0, double t0, double dt, size_t steps,
     int max_iter = 10);
 // second order implicit RK methods
 std::vector<std::vector<double>> Trapezoidal_method(
-    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    const std::function<std::vector<double>(double,
+                                            const std::vector<double> &)> &f,
     std::vector<double> y0, double t0, double dt, size_t steps,
     int max_iter = 10);
 
 std::vector<std::vector<double>> Implicit_midpoint_method(
-    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    const std::function<std::vector<double>(double,
+                                            const std::vector<double> &)> &f,
     std::vector<double> y0, double t0, double dt, size_t steps,
     int max_iter = 10);
 
 // forth order explicit RK methods
 std::vector<std::vector<double>> RK4_method(
-    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    const std::function<std::vector<double>(double,
+                                            const std::vector<double> &)> &f,
     std::vector<double> y0, double t0, double dt, size_t steps,
     int max_iter = 10);
 
 // forth order implicit RK methods
 std::vector<std::vector<double>> LobattoIIIA_method(
-    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    const std::function<std::vector<double>(double,
+                                            const std::vector<double> &)> &f,
     std::vector<double> y0, double t0, double dt, size_t steps,
     int max_iter = 10);
 
 std::vector<std::vector<double>> Gauss_Legendre_method(
-    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    const std::function<std::vector<double>(double,
+                                            const std::vector<double> &)> &f,
     std::vector<double> y0, double t0, double dt, size_t steps,
     int max_iter = 10);
 

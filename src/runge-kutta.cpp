@@ -5,7 +5,8 @@ namespace rungekutta {
 // general runge kutta method
 std::vector<std::vector<double>> runge_kutta(
     const ButcherTableau &table,
-    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    const std::function<std::vector<double>(double,
+                                            const std::vector<double> &)> &f,
     std::vector<double> y0, double t0, double dt, size_t steps, int max_iter) {
   std::vector<std::vector<double>> results;
   results.push_back(y0);
@@ -15,10 +16,10 @@ std::vector<std::vector<double>> runge_kutta(
   const auto &c = table.getC();
   size_t s = b.size();    // number of stages so intermediate calculations
   size_t dim = y0.size(); // system dimension
-  double t = t0;
 
   // calculates coefficients K
-  for (size_t i = 0; i < steps; ++i) {
+  for (size_t n = 0; n < steps; ++n) {
+    double t = t0 + n * dt;
     std::vector<std::vector<double>> K(
         s, std::vector<double>(dim, 0.0)); // intermediates k
 
@@ -29,7 +30,7 @@ std::vector<std::vector<double>> runge_kutta(
         for (size_t j = 0; j < i; ++j)
           for (size_t k = 0; k < dim; ++k)
             yi[k] += dt * A[i][j] * K[j][k];
-        K[i] = f(yi);
+        K[i] = f(t + c[i] * dt, yi);
       }
     } else {
       // Implicit RK — fixed-point iteration (Newton)
@@ -42,7 +43,7 @@ std::vector<std::vector<double>> runge_kutta(
               yi[k] += A[i][j] * K[j][k];
           for (size_t k = 0; k < dim; ++k)
             yi[k] = y0[k] + dt * yi[k];
-          K[i] = f(yi);
+          K[i] = f(t + c[i] * dt, yi);
         }
 
         // convergence check and if close enough break already
@@ -64,7 +65,6 @@ std::vector<std::vector<double>> runge_kutta(
 
     results.push_back(y_next);
     y0 = y_next;
-    t += dt;
   }
 
   return results;
@@ -76,7 +76,8 @@ namespace methods {
 //
 // second order explicit RK methods
 std::vector<std::vector<double>> Heun_method(
-    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    const std::function<std::vector<double>(double,
+                                            const std::vector<double> &)> &f,
     std::vector<double> y0, double t0, double dt, size_t steps, int max_iter) {
   return rungekutta::runge_kutta(methods::Heun_tableau, f, y0, t0, dt, steps,
                                  max_iter);
@@ -84,14 +85,16 @@ std::vector<std::vector<double>> Heun_method(
 
 // second order implicit RK methods
 std::vector<std::vector<double>> Trapezoidal_method(
-    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    const std::function<std::vector<double>(double,
+                                            const std::vector<double> &)> &f,
     std::vector<double> y0, double t0, double dt, size_t steps, int max_iter) {
   return rungekutta::runge_kutta(methods::Trapezoidal_tableau, f, y0, t0, dt,
                                  steps, max_iter);
 }
 
 std::vector<std::vector<double>> Implicit_midpoint_method(
-    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    const std::function<std::vector<double>(double,
+                                            const std::vector<double> &)> &f,
     std::vector<double> y0, double t0, double dt, size_t steps, int max_iter) {
   return rungekutta::runge_kutta(methods::Implicit_midpoint_tableau, f, y0, t0,
                                  dt, steps, max_iter);
@@ -99,7 +102,8 @@ std::vector<std::vector<double>> Implicit_midpoint_method(
 
 // forth order explicit RK methods
 std::vector<std::vector<double>> RK4_method(
-    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    const std::function<std::vector<double>(double,
+                                            const std::vector<double> &)> &f,
     std::vector<double> y0, double t0, double dt, size_t steps, int max_iter) {
   return rungekutta::runge_kutta(methods::RK4_tableau, f, y0, t0, dt, steps,
                                  max_iter);
@@ -107,14 +111,16 @@ std::vector<std::vector<double>> RK4_method(
 
 // forth order implicit RK methods
 std::vector<std::vector<double>> LobattoIIIA_method(
-    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    const std::function<std::vector<double>(double,
+                                            const std::vector<double> &)> &f,
     std::vector<double> y0, double t0, double dt, size_t steps, int max_iter) {
   return rungekutta::runge_kutta(methods::LobattoIIIA_tableau, f, y0, t0, dt,
                                  steps, max_iter);
 }
 
 std::vector<std::vector<double>> Gauss_Legendre_method(
-    const std::function<std::vector<double>(const std::vector<double> &)> &f,
+    const std::function<std::vector<double>(double,
+                                            const std::vector<double> &)> &f,
     std::vector<double> y0, double t0, double dt, size_t steps, int max_iter) {
   return rungekutta::runge_kutta(methods::Gauss_Legendre_tableau, f, y0, t0, dt,
                                  steps, max_iter);
