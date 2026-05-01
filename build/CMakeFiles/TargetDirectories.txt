@@ -1,3 +1,0 @@
-/home/sunix/Projekte/C++/runge-kutta-methods/build/CMakeFiles/hamsolver.dir
-/home/sunix/Projekte/C++/runge-kutta-methods/build/CMakeFiles/edit_cache.dir
-/home/sunix/Projekte/C++/runge-kutta-methods/build/CMakeFiles/rebuild_cache.dir

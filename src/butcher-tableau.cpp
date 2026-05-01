@@ -1,8 +1,10 @@
 #include "runge-kutta.hpp"
+#include <cmath>
+#include <stdexcept>
 #include <vector>
 
 // --- Imlplicity check ---
-bool checkImplicit(std::vector<std::vector<double>> A) {
+bool checkImplicit(const std::vector<std::vector<double>> &A) {
   size_t s = A.size();
   for (size_t i = 0; i < s; ++i) {
     for (size_t j = i; j < s; ++j) {
@@ -19,6 +21,10 @@ ButcherTableau::ButcherTableau(std::vector<std::vector<double>> A_,
   A = std::move(A_);
   b = std::move(b_);
   c = std::move(c_);
+
+  if (!isValid()) {
+    throw std::invalid_argument("Invalid arguments");
+  }
 }
 
 // --- Getters ---
@@ -27,7 +33,7 @@ const std::vector<std::vector<double>> &ButcherTableau::getA() const {
 }
 const std::vector<double> &ButcherTableau::getB() const { return b; }
 const std::vector<double> &ButcherTableau::getC() const { return c; }
-const bool &ButcherTableau::isImplicit() const { return implicit; }
+bool ButcherTableau::isImplicit() const { return implicit; }
 
 // --- Validity ---
 bool ButcherTableau::isValid() const {
