@@ -20,7 +20,7 @@ std::vector<double> sun_earth_moon_rhs(double t,
 
   // Normalized constants (G=1, Sun=1.0)
   const double G = 1.0;
-  const double m[3] = {1.0, 3.0e-6, 3.2e-8};
+  const double m[3] = {1.0, 3.0034e-6, 3.694e-8};
 
   // Extract for readability
   double x[3] = {y_[0], y_[2], y_[4]};

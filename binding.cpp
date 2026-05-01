@@ -31,4 +31,7 @@ PYBIND11_MODULE(hamsolver, m) {
   // 4. Export the C++ physics RHS
   m.def("kepler_rhs", &physics::kepler_rhs,
         "Kepler problem RHS (C++ optimized)");
+
+  m.def("sun_earth_moon_rhs", &physics::sun_earth_moon_rhs,
+        "2D Sun-Earth-Moon RHS (C++ optimized)");
 }

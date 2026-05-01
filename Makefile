@@ -10,7 +10,7 @@ build:
 install: build
 	@echo "Installing module to python/ directory..."
 	mkdir -p python
-	cp build/hamsolver.so python/
+	cp build/hamsolver.so python/sem/
 	@echo "Done! You can now 'import hamsolver' from the python/ directory."
 
 test: build

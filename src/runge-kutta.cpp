@@ -8,6 +8,7 @@ std::vector<std::vector<double>> runge_kutta(
     const std::function<std::vector<double>(double,
                                             const std::vector<double> &)> &f,
     std::vector<double> yn, double t0, double dt, size_t steps, int max_iter) {
+
   std::vector<std::vector<double>> results;
   results.push_back(yn);
 
@@ -40,20 +41,27 @@ std::vector<std::vector<double>> runge_kutta(
           std::vector<double> yi(dim, 0.0);
           for (size_t j = 0; j < s; ++j)
             for (size_t k = 0; k < dim; ++k)
-              yi[k] += A[i][j] * K[j][k];
+              yi[k] += A[i][j] * K_prev[j][k]; // CRITICAL: Use K_prev here!
+
           for (size_t k = 0; k < dim; ++k)
             yi[k] = yn[k] + dt * yi[k];
-          K[i] = f(t + c[i] * dt, yi);
+
+          K[i] = f(t + c[i] * dt, yi); // Write new values into K
         }
 
-        // convergence check and if close enough break already
+        // convergence check
         double err = 0;
         for (size_t i = 0; i < s; ++i)
           for (size_t k = 0; k < dim; ++k)
             err += std::abs(K[i][k] - K_prev[i][k]);
+
         if (err < constants::tolerance)
           break;
-        std::swap(K_prev, K);
+
+        // Manually copy K to K_prev to avoid memory allocation in the hot path
+        for (size_t i = 0; i < s; ++i)
+          for (size_t k = 0; k < dim; ++k)
+            K_prev[i][k] = K[i][k];
       }
     }
 
@@ -65,8 +73,9 @@ std::vector<std::vector<double>> runge_kutta(
 
     results.push_back(y_next);
     yn = y_next;
-  }
+  } // END of for loop
 
   return results;
 }
+
 } // namespace rungekutta
