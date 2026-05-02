@@ -27,4 +27,59 @@ std::vector<double> cubic_hermite_interpolate(const std::vector<double> &y0,
   }
   return y_interp;
 }
+
+std::vector<std::vector<double>> compute_jacobian(
+    const std::function<std::vector<double>(double,
+                                            const std::vector<double> &)> &f,
+    double t, std::vector<double> y, const std::vector<double> &f0) {
+
+  size_t dim = y.size();
+  std::vector<std::vector<double>> J(dim, std::vector<double>(dim, 0.0));
+  double eps = 1e-7;
+
+  for (size_t j = 0; j < dim; ++j) {
+    double yj_orig = y[j];
+    y[j] += eps;
+    std::vector<double> f1 = f(t, y);
+    y[j] = yj_orig; // Restore
+
+    for (size_t i = 0; i < dim; ++i) {
+      J[i][j] = (f1[i] - f0[i]) / eps;
+    }
+  }
+  return J;
+}
+
+std::vector<double> solve_linear_system(std::vector<std::vector<double>> A,
+                                        std::vector<double> b) {
+
+  size_t n = b.size();
+  // Gaussian Elimination with Partial Pivoting
+  for (size_t i = 0; i < n; ++i) {
+    size_t max_row = i;
+    for (size_t k = i + 1; k < n; ++k) {
+      if (std::abs(A[k][i]) > std::abs(A[max_row][i]))
+        max_row = k;
+    }
+    std::swap(A[i], A[max_row]);
+    std::swap(b[i], b[max_row]);
+
+    for (size_t k = i + 1; k < n; ++k) {
+      double factor = A[k][i] / A[i][i];
+      for (size_t j = i; j < n; ++j)
+        A[k][j] -= factor * A[i][j];
+      b[k] -= factor * b[i];
+    }
+  }
+
+  // Back-substitution
+  std::vector<double> x(n, 0.0);
+  for (int i = n - 1; i >= 0; --i) {
+    double sum = 0.0;
+    for (size_t j = i + 1; j < n; ++j)
+      sum += A[i][j] * x[j];
+    x[i] = (b[i] - sum) / A[i][i];
+  }
+  return x;
+}
 } // namespace utils
