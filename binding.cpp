@@ -20,9 +20,18 @@ PYBIND11_MODULE(hamsolver, m) {
       .def(py::init<std::vector<std::vector<double>>, std::vector<double>,
                     std::vector<double>, std::vector<double>>(),
            py::arg("A"), py::arg("b"), py::arg("c"), py::arg("bstar"))
+      // Adaptive 5-argument constructor: declares the order of the
+      // embedded (lower-order) companion so the step-size controller can
+      // pick the right scaling exponent.
+      .def(py::init<std::vector<std::vector<double>>, std::vector<double>,
+                    std::vector<double>, std::vector<double>, int>(),
+           py::arg("A"), py::arg("b"), py::arg("c"), py::arg("bstar"),
+           py::arg("order_low"))
       .def("is_implicit", &ButcherTableau::isImplicit)
       .def("is_valid", &ButcherTableau::isValid)
-      .def("is_symplectic", &ButcherTableau::isSymplectic);
+      .def("is_symplectic", &ButcherTableau::isSymplectic)
+      .def("is_embedded", &ButcherTableau::isEmbedded)
+      .def("order_low", &ButcherTableau::getOrderLow);
 
   // 2. Export the general runge_kutta function
   // Standard RK
@@ -44,11 +53,15 @@ PYBIND11_MODULE(hamsolver, m) {
   // 3. Export tableaus as module-level constants
   m.attr("Heun") = methods::Heun_tableau;
   m.attr("RK4") = methods::RK4_tableau;
+  m.attr("RK4_38") = methods::RK4_38_tableau;
   m.attr("Implicit_midpoint") = methods::Implicit_midpoint_tableau;
   m.attr("Gauss_Legendre") = methods::Gauss_Legendre_tableau;
   m.attr("Trapezoidal") = methods::Trapezoidal_tableau;
   m.attr("LobattoIIIA") = methods::LobattoIIIA_tableau;
   m.attr("BS32") = methods::BS32_tableau;
+  m.attr("RKF45") = methods::RKF45_tableau;
+  m.attr("CashKarp") = methods::CashKarp_tableau;
+  m.attr("DP54") = methods::DP54_tableau;
 
   // 4. Export the C++ physics RHS
   m.def("kepler_rhs", &physics::kepler_rhs,

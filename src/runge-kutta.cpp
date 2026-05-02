@@ -1,6 +1,7 @@
 #include "runge-kutta.hpp"
 #include "utils.hpp"
 #include <algorithm>
+#include <stdexcept>
 
 namespace rungekutta {
 
@@ -27,9 +28,17 @@ std::tuple<std::vector<double>, std::vector<std::vector<double>>> runge_kutta(
   // MEMORY WORKSPACE: Allocate exactly ONE time.
   // ==========================================
   std::vector<std::vector<double>> K(s, std::vector<double>(dim, 0.0));
-  std::vector<std::vector<double>> K_prev(s, std::vector<double>(dim, 0.0));
   std::vector<double> yi(dim, 0.0);
   std::vector<double> y_next(dim, 0.0);
+
+  // Newton-iteration workspace. Only touched for implicit tableaus, but
+  // cheap to keep around for the explicit case too.
+  const size_t sys_dim = s * dim;
+  std::vector<std::vector<double>> J(dim, std::vector<double>(dim, 0.0));
+  std::vector<std::vector<double>> SysJ(sys_dim,
+                                        std::vector<double>(sys_dim, 0.0));
+  std::vector<double> G(sys_dim, 0.0);
+  std::vector<double> f_base(dim, 0.0);
 
   for (size_t n = 0; n < steps; ++n) {
     double t = t0 + n * dt;
@@ -45,29 +54,24 @@ std::tuple<std::vector<double>, std::vector<std::vector<double>>> runge_kutta(
         K[i] = f(t + c[i] * dt, yi);
       }
     } else {
-      // --- True Newton Iteration (Simplified) ---
-
-      // 1. Calculate the Jacobian of the physics system ONCE per step
-      std::vector<double> f_base = f(t, yn);
-      std::vector<std::vector<double>> J =
-          utils::compute_jacobian(f, t, yn, f_base);
-
-      size_t sys_dim = s * dim;
-      std::vector<std::vector<double>> SysJ(sys_dim,
-                                            std::vector<double>(sys_dim, 0.0));
-      std::vector<double> G(sys_dim, 0.0);
-      std::vector<double> dK(sys_dim, 0.0);
-
-      for (size_t i = 0; i < s; ++i)
-        K_prev[i] = K[i];
+      // --- Newton iteration on the stage values K, in place. ---
+      // K starts at whatever the previous step left (zero on the first
+      // step) and is updated in place each Newton iteration. Reusing
+      // the previous step's K gives a much better initial guess than
+      // zero, especially for slowly-varying problems.
+      // We "freeze" the Jacobian per time step (modified Newton): cheaper
+      // than re-evaluating J each iteration and adequate for non-stiff
+      // problems.
+      f_base = f(t, yn);
+      J = utils::compute_jacobian(f, t, yn, f_base);
 
       for (int it = 0; it < max_iter; ++it) {
-        // 2. Build the Residual vector G and the System Jacobian SysJ
+        // Build the residual G and the system Jacobian SysJ.
         for (size_t i = 0; i < s; ++i) {
           std::fill(yi.begin(), yi.end(), 0.0);
           for (size_t j = 0; j < s; ++j) {
             for (size_t k = 0; k < dim; ++k)
-              yi[k] += A[i][j] * K_prev[j][k];
+              yi[k] += A[i][j] * K[j][k];
           }
           for (size_t k = 0; k < dim; ++k)
             yi[k] = yn[k] + dt * yi[k];
@@ -75,36 +79,34 @@ std::tuple<std::vector<double>, std::vector<std::vector<double>>> runge_kutta(
           std::vector<double> fi = f(t + c[i] * dt, yi);
 
           for (size_t k = 0; k < dim; ++k) {
-            int row = i * dim + k;
-            G[row] = K_prev[i][k] - fi[k]; // F(x) = 0
+            size_t row = i * dim + k;
+            G[row] = K[i][k] - fi[k];
 
-            // Kronecker Product: I - dt * A * J
+            // Kronecker product: I - dt * (A ⊗ J)
             for (size_t j = 0; j < s; ++j) {
               for (size_t l = 0; l < dim; ++l) {
-                int col = j * dim + l;
-                double kronecker = (row == col) ? 1.0 : 0.0;
-                SysJ[row][col] = kronecker - dt * A[i][j] * J[k][l];
+                size_t col = j * dim + l;
+                double kron = (row == col) ? 1.0 : 0.0;
+                SysJ[row][col] = kron - dt * A[i][j] * J[k][l];
               }
             }
           }
         }
 
-        // 3. Solve the linear system: SysJ * dK = G
-        dK = utils::solve_linear_system(SysJ, G);
+        std::vector<double> dK = utils::solve_linear_system(SysJ, G);
 
-        // 4. Update K and check convergence
+        // K_new = K - dK. err is the L1 size of the update step.
         double err = 0.0;
         for (size_t i = 0; i < s; ++i) {
           for (size_t k = 0; k < dim; ++k) {
-            K[i][k] = K_prev[i][k] - dK[i * dim + k];
-            err += std::abs(K[i][k] - K_prev[i][k]);
+            double upd = dK[i * dim + k];
+            K[i][k] -= upd;
+            err += std::abs(upd);
           }
         }
 
         if (err < constants::tolerance)
           break;
-        for (size_t i = 0; i < s; ++i)
-          K_prev[i] = K[i];
       }
     }
 
@@ -150,6 +152,12 @@ adaptive_runge_kutta(const ButcherTableau &table,
   double t = t0;
   double dt = initial_dt;
   const double safety = 0.9;
+  const double dt_min = 1e-14 * std::max(std::abs(t0), std::abs(tf));
+  // Step-size scaling exponent: 1 / (p_low + 1) where p_low is the order
+  // of the lower-order companion in the embedded pair. BS32 → 1/3, DP54/RKF45
+  // /Cash-Karp → 1/5. Read from the tableau so adding a new embedded method
+  // doesn't require touching this function.
+  const double exponent = 1.0 / (table.getOrderLow() + 1);
 
   double t_out_next = t0 + dt_out;
   bool use_dense_output = (dt_out > 0.0);
@@ -158,7 +166,6 @@ adaptive_runge_kutta(const ButcherTableau &table,
   // MEMORY WORKSPACE: Allocate exactly ONE time.
   // ==========================================
   std::vector<std::vector<double>> K(s, std::vector<double>(dim, 0.0));
-  std::vector<std::vector<double>> K_prev(s, std::vector<double>(dim, 0.0));
   std::vector<double> yi(dim, 0.0);
   std::vector<double> y_next(dim, 0.0);
   std::vector<double> y_star(dim, 0.0);
@@ -166,6 +173,14 @@ adaptive_runge_kutta(const ButcherTableau &table,
   std::vector<double> f1(dim, 0.0);
   std::vector<double> event_times;
   std::vector<std::vector<double>> event_states;
+
+  // Newton-iteration workspace (only used for implicit tableaus).
+  const size_t sys_dim = s * dim;
+  std::vector<std::vector<double>> J(dim, std::vector<double>(dim, 0.0));
+  std::vector<std::vector<double>> SysJ(sys_dim,
+                                        std::vector<double>(sys_dim, 0.0));
+  std::vector<double> G(sys_dim, 0.0);
+  std::vector<double> f_base(dim, 0.0);
 
   while (t < tf) {
     if (t + dt > tf)
@@ -182,29 +197,18 @@ adaptive_runge_kutta(const ButcherTableau &table,
         K[i] = f(t + c[i] * dt, yi);
       }
     } else {
-      // --- True Newton Iteration (Simplified) ---
-
-      // 1. Calculate the Jacobian of the physics system ONCE per step
-      std::vector<double> f_base = f(t, yn);
-      std::vector<std::vector<double>> J =
-          utils::compute_jacobian(f, t, yn, f_base);
-
-      size_t sys_dim = s * dim;
-      std::vector<std::vector<double>> SysJ(sys_dim,
-                                            std::vector<double>(sys_dim, 0.0));
-      std::vector<double> G(sys_dim, 0.0);
-      std::vector<double> dK(sys_dim, 0.0);
-
-      for (size_t i = 0; i < s; ++i)
-        K_prev[i] = K[i];
+      // --- Newton iteration on stage values K (in place). ---
+      // Same scheme as the fixed-step solver: freeze the Jacobian per
+      // attempted step and update K in place each iteration.
+      f_base = f(t, yn);
+      J = utils::compute_jacobian(f, t, yn, f_base);
 
       for (int it = 0; it < max_iter; ++it) {
-        // 2. Build the Residual vector G and the System Jacobian SysJ
         for (size_t i = 0; i < s; ++i) {
           std::fill(yi.begin(), yi.end(), 0.0);
           for (size_t j = 0; j < s; ++j) {
             for (size_t k = 0; k < dim; ++k)
-              yi[k] += A[i][j] * K_prev[j][k];
+              yi[k] += A[i][j] * K[j][k];
           }
           for (size_t k = 0; k < dim; ++k)
             yi[k] = yn[k] + dt * yi[k];
@@ -212,36 +216,32 @@ adaptive_runge_kutta(const ButcherTableau &table,
           std::vector<double> fi = f(t + c[i] * dt, yi);
 
           for (size_t k = 0; k < dim; ++k) {
-            int row = i * dim + k;
-            G[row] = K_prev[i][k] - fi[k]; // F(x) = 0
+            size_t row = i * dim + k;
+            G[row] = K[i][k] - fi[k];
 
-            // Kronecker Product: I - dt * A * J
             for (size_t j = 0; j < s; ++j) {
               for (size_t l = 0; l < dim; ++l) {
-                int col = j * dim + l;
-                double kronecker = (row == col) ? 1.0 : 0.0;
-                SysJ[row][col] = kronecker - dt * A[i][j] * J[k][l];
+                size_t col = j * dim + l;
+                double kron = (row == col) ? 1.0 : 0.0;
+                SysJ[row][col] = kron - dt * A[i][j] * J[k][l];
               }
             }
           }
         }
 
-        // 3. Solve the linear system: SysJ * dK = G
-        dK = utils::solve_linear_system(SysJ, G);
+        std::vector<double> dK = utils::solve_linear_system(SysJ, G);
 
-        // 4. Update K and check convergence
         double err = 0.0;
         for (size_t i = 0; i < s; ++i) {
           for (size_t k = 0; k < dim; ++k) {
-            K[i][k] = K_prev[i][k] - dK[i * dim + k];
-            err += std::abs(K[i][k] - K_prev[i][k]);
+            double upd = dK[i * dim + k];
+            K[i][k] -= upd;
+            err += std::abs(upd);
           }
         }
 
         if (err < constants::tolerance)
           break;
-        for (size_t i = 0; i < s; ++i)
-          K_prev[i] = K[i];
       }
     }
 
@@ -263,11 +263,7 @@ adaptive_runge_kutta(const ButcherTableau &table,
     if (max_error == 0.0)
       max_error = 1e-15;
 
-    double scale = safety * std::pow(tolerance / max_error, 1.0 / 3.0);
-
-    // Remember to add these two variables near the top of the function next to
-    // `times` and `states`! std::vector<double> event_times;
-    // std::vector<std::vector<double>> event_states;
+    double scale = safety * std::pow(tolerance / max_error, exponent);
 
     if (max_error <= tolerance) {
       // --- STEP ACCEPTED ---
@@ -356,6 +352,17 @@ adaptive_runge_kutta(const ButcherTableau &table,
       yn = y_next;
       t += dt;
       dt *= std::min(2.0, scale);
+    } else {
+      // --- STEP REJECTED ---
+      // Shrink dt without advancing t. Floor at 0.1× to avoid wild swings;
+      // bail out if dt has collapsed to near round-off (degenerate problem
+      // or tolerance asked for is unattainable in double precision).
+      dt *= std::max(0.1, scale);
+      if (dt < dt_min) {
+        throw std::runtime_error(
+            "adaptive_runge_kutta: step size collapsed below dt_min; "
+            "the requested tolerance is unattainable for this problem.");
+      }
     }
   }
 

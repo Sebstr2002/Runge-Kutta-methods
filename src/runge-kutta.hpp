@@ -19,6 +19,10 @@ private:
   std::vector<double> c;
   bool implicit;
   bool is_embedded = false;
+  // For embedded pairs: order of the lower-order companion. Used by the
+  // adaptive controller to compute the step-size scaling exponent
+  // 1 / (order_low + 1).  Default 2 reproduces the original BS32 behaviour.
+  int order_low = 2;
 
 public:
   // constructor
@@ -26,6 +30,9 @@ public:
                  std::vector<double> c_);
   ButcherTableau(std::vector<std::vector<double>> A_, std::vector<double> b_,
                  std::vector<double> c_, std::vector<double> bstar_);
+  ButcherTableau(std::vector<std::vector<double>> A_, std::vector<double> b_,
+                 std::vector<double> c_, std::vector<double> bstar_,
+                 int order_low_);
 
   // getters
   const std::vector<std::vector<double>> &getA() const;
@@ -33,6 +40,8 @@ public:
   const std::vector<double> &getB_star() const;
   const std::vector<double> &getC() const;
   bool isImplicit() const;
+  bool isEmbedded() const;
+  int getOrderLow() const;
 
   // properties bool isValid() const;
   bool isValid() const;
@@ -69,7 +78,11 @@ extern const ButcherTableau Heun_tableau;
 extern const ButcherTableau Trapezoidal_tableau;
 extern const ButcherTableau Implicit_midpoint_tableau;
 extern const ButcherTableau RK4_tableau;
+extern const ButcherTableau RK4_38_tableau;       // 3/8-rule variant
 extern const ButcherTableau LobattoIIIA_tableau;
 extern const ButcherTableau Gauss_Legendre_tableau;
-extern const ButcherTableau BS32_tableau;
+extern const ButcherTableau BS32_tableau;         // Bogacki-Shampine 3(2)
+extern const ButcherTableau RKF45_tableau;        // Runge-Kutta-Fehlberg 5(4)
+extern const ButcherTableau CashKarp_tableau;     // Cash-Karp 5(4)
+extern const ButcherTableau DP54_tableau;         // Dormand-Prince 5(4)
 } // namespace methods

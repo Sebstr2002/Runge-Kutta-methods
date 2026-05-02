@@ -34,21 +34,22 @@ std::vector<double> sun_earth_moon_rhs(double t,
     dy[i * 2 + 1] = py[i] / m[i]; // dy_i / dt
   }
 
-  // 2. Calculate force:
+  // 2. Calculate force — iterate j > i and use Newton's third law so each
+  //    pairwise force is computed once instead of twice.
   for (int i = 0; i < 3; ++i) {
-    for (int j = 0; j < 3; ++j) {
-      if (i == j)
-        continue; // No self-interaction
-
+    for (int j = i + 1; j < 3; ++j) {
       double dx = x[i] - x[j];
       double dy_pos = y[i] - y[j];
       double r2 = dx * dx + dy_pos * dy_pos;
       double r3 = std::pow(r2, 1.5);
 
-      double force_mag = (G * m[i] * m[j]) / r3;
+      double f_x = (G * m[i] * m[j]) * dx / r3;
+      double f_y = (G * m[i] * m[j]) * dy_pos / r3;
 
-      dy[6 + i * 2] -= force_mag * dx;
-      dy[6 + i * 2 + 1] -= force_mag * dy_pos;
+      dy[6 + i * 2]     -= f_x;
+      dy[6 + i * 2 + 1] -= f_y;
+      dy[6 + j * 2]     += f_x;
+      dy[6 + j * 2 + 1] += f_y;
     }
   }
 

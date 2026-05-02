@@ -33,8 +33,23 @@ TEST_CASE("Symplecticity check labels methods correctly", "[tableau][symplectic]
     CHECK_FALSE(methods::Heun_tableau.isSymplectic());
 }
 
-TEST_CASE("Hand-built malformed tableau fails isValid", "[tableau]") {
-    // b does not sum to 1 -> invalid.
-    ButcherTableau bad({{0.0, 0.0}, {1.0, 0.0}}, {0.5, 0.4}, {0.0, 1.0});
-    CHECK_FALSE(bad.isValid());
+TEST_CASE("Hand-built malformed tableau is rejected at construction",
+          "[tableau]") {
+    // b does not sum to 1 -> constructor throws std::invalid_argument.
+    CHECK_THROWS_AS(
+        ButcherTableau({{0.0, 0.0}, {1.0, 0.0}}, {0.5, 0.4}, {0.0, 1.0}),
+        std::invalid_argument);
+}
+
+TEST_CASE("New embedded tableaus are valid and report order_low", "[tableau]") {
+    REQUIRE(methods::RKF45_tableau.isValid());
+    REQUIRE(methods::CashKarp_tableau.isValid());
+    REQUIRE(methods::DP54_tableau.isValid());
+    REQUIRE(methods::RK4_38_tableau.isValid());
+    CHECK(methods::BS32_tableau.getOrderLow() == 2);
+    CHECK(methods::RKF45_tableau.getOrderLow() == 4);
+    CHECK(methods::CashKarp_tableau.getOrderLow() == 4);
+    CHECK(methods::DP54_tableau.getOrderLow() == 4);
+    CHECK_FALSE(methods::DP54_tableau.isImplicit());
+    CHECK_FALSE(methods::RKF45_tableau.isImplicit());
 }

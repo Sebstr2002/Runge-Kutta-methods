@@ -1,4 +1,24 @@
+# Build artefacts
 build/
 *.so
+*.o
+*.a
+
+# Python
 __pycache__/
+*.pyc
+
+# Plot output
 *.pdf
+*.png
+*.gif
+*.mp4
+
+# Markdown — keep only the top-level README.md
+*.md
+!/README.md
+
+# Plain-text scratch files (CMakeLists.txt is *.txt but stays tracked
+# because git doesn't re-ignore already-tracked files).
+*.txt
+!CMakeLists.txt

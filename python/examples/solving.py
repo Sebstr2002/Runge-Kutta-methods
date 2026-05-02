@@ -1,72 +1,63 @@
+"""Numerical comparison of every fixed-step method against the planar Kepler problem.
+
+Reports position drift, momentum drift, and the mean/std of energy and
+angular momentum over one full orbital period. The Hamiltonian RHS is the
+built-in C++ ``hamsolver.kepler_rhs`` so the integrator never crosses back
+into Python during a step.
+"""
 import numpy as np
 import hamsolver
 
-# hamiltonian right hand side:
-def rhs(t, y_): # t is a cpp double so python float and y_ is an np array or cpp vector
-    y_ = y_.astype(np.longdouble)
-    x, y, px, py = y_
-    r3 = (x**2 + y**2)**1.5 #derivative denominator
-    return np.array([
-        px,
-        py,
-        -x / r3,
-        -y / r3
-    ], dtype=np.longdouble) # hamiltonian equations of motion
-
-#initial conditions
+# ---------------------------------------------------------------------------
+# Initial conditions: highly-eccentric Kepler orbit parameterised by eps.
+# ---------------------------------------------------------------------------
 eps = 0.9
 y0 = np.array([
-    1-eps,
+    1 - eps,
     0.0,
     0.0,
-    np.sqrt((1 + eps) / (1 - eps))
+    np.sqrt((1 + eps) / (1 - eps)),
 ])
 t0, tf, steps = 0.0, 2 * np.pi, 10000
-dt = (tf-t0) /steps
-ts = np.linspace(t0, tf, steps + 1)
+dt = (tf - t0) / steps
 
-# energy
-def compute_Energy(x, y, px, py):
-    r = np.sqrt(x**2 + y**2)
-    return 0.5 * (px**2 + py**2) - 1.0 / r
 
-# angular momentum
-def compute_L(x, y, px, py):
+def compute_energy(traj):
+    x, y, px, py = traj.T
+    r = np.sqrt(x * x + y * y)
+    return 0.5 * (px * px + py * py) - 1.0 / r
+
+
+def compute_L(traj):
+    x, y, px, py = traj.T
     return x * py - y * px
 
 
-# Method registry 
+# (display name, tableau)
 methods = [
-    ("RK4", hamsolver.RK4_method),
-    ("Heun", hamsolver.Heun_method),
-    ("Implicit Midpoint", hamsolver.Implicit_midpoint_method),
-    ("Trapezoidal", hamsolver.Trapezoidal_method),
-    ("Gauss-Legendre", hamsolver.Gauss_Legendre_method),
-    ("LobattoIIIA", hamsolver.LobattoIIIA_method)
+    ("RK4",               hamsolver.RK4),
+    ("RK4 (3/8-rule)",    hamsolver.RK4_38),
+    ("Heun",              hamsolver.Heun),
+    ("Implicit Midpoint", hamsolver.Implicit_midpoint),
+    ("Trapezoidal",       hamsolver.Trapezoidal),
+    ("Gauss-Legendre",    hamsolver.Gauss_Legendre),
+    ("LobattoIIIA",       hamsolver.LobattoIIIA),
 ]
 
-# testing all methods:
-for name, method in methods:
+for name, table in methods:
     print(f"\n--- {name} ---")
+    _times, states = hamsolver.runge_kutta(
+        table=table, f=hamsolver.kepler_rhs,
+        yn=y0, t0=t0, dt=dt, steps=steps, max_iter=10,
+    )
+    traj = np.asarray(states)
 
-    result = method(rhs, y0, t0, dt, steps, max_iter=10)
-
-    x, y, px, py = result.T
-    E = compute_Energy(x, y, px, py)
-    L = compute_L(x, y, px, py)
-    start = result[0, :2].astype(np.longdouble)
-    end = result[-1, :2].astype(np.longdouble)
-    pos_err = np.linalg.norm(end - start)
-    mom_start = result[0, 2:].astype(np.longdouble)
-    mom_end = result[-1, 2:].astype(np.longdouble)
-    mom_err = np.linalg.norm(mom_end - mom_start)
-    E_mean = np.mean(E)
-    E_std = np.std(E)
-    L_mean = np.mean(L)
-    L_std = np.std(L)
+    pos_err = np.linalg.norm(traj[-1, :2] - traj[0, :2])
+    mom_err = np.linalg.norm(traj[-1, 2:] - traj[0, 2:])
+    E = compute_energy(traj)
+    L = compute_L(traj)
 
     print(f"Position error after one period: {pos_err:.1e}")
     print(f"Momentum error after one period: {mom_err:.1e}")
-    print(f"Energy    avg: {E_mean:.5e}, std: {E_std:.1e}")
-    print(f"Angular L avg: {L_mean:.5e}, std: {L_std:.1e}")
-
+    print(f"Energy    avg: {E.mean():.5e}, std: {E.std():.1e}")
+    print(f"Angular L avg: {L.mean():.5e}, std: {L.std():.1e}")

@@ -1,5 +1,7 @@
 #include "utils.hpp"
+#include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace utils {
 std::vector<double> cubic_hermite_interpolate(const std::vector<double> &y0,
@@ -35,16 +37,25 @@ std::vector<std::vector<double>> compute_jacobian(
 
   size_t dim = y.size();
   std::vector<std::vector<double>> J(dim, std::vector<double>(dim, 0.0));
-  double eps = 1e-7;
+  // Use a scaled forward-difference step. With a fixed eps = 1e-7 the
+  // perturbation can be huge compared to small components (Kepler periapsis,
+  // GR Mercury) and tiny compared to large ones, both of which spoil the
+  // Jacobian. eps_j = sqrt(machine_eps) * max(|y_j|, 1) is the textbook
+  // compromise for one-sided differences.
+  const double sqrt_eps = std::sqrt(std::numeric_limits<double>::epsilon());
 
   for (size_t j = 0; j < dim; ++j) {
     double yj_orig = y[j];
-    y[j] += eps;
+    double eps_j = sqrt_eps * std::max(std::abs(yj_orig), 1.0);
+    y[j] = yj_orig + eps_j;
+    // Recover the actual perturbation magnitude after floating-point rounding;
+    // gives the Jacobian an extra digit of accuracy near zero.
+    double h = y[j] - yj_orig;
     std::vector<double> f1 = f(t, y);
     y[j] = yj_orig; // Restore
 
     for (size_t i = 0; i < dim; ++i) {
-      J[i][j] = (f1[i] - f0[i]) / eps;
+      J[i][j] = (f1[i] - f0[i]) / h;
     }
   }
   return J;

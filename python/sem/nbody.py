@@ -22,6 +22,6 @@ def make_nbody_rhs(masses, G=1.0, softening=0.0):
         accel = - G * np.einsum('j, ij, ijk->ik', masses, inv_r3, diff)
         dp = masses[:, None] * accel
 
-        return np.concatenate([dp.ravel(), dp.ravel()])
+        return np.concatenate([dq.ravel(), dp.ravel()])
 
     return rhs

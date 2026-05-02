@@ -1,49 +1,63 @@
-import numpy as np
-import matplotlib.pyplot as plt
-import hamsolver
+"""Plot energy and angular-momentum drift for every fixed-step method on Kepler.
+
+Writes ``plots/energy_methods.pdf`` and ``plots/angular_momentum_methods.pdf``.
+Each method is integrated exactly once per run; both invariants are computed
+from the same trajectory.
+"""
 import os
 
-# Create output folder
+import matplotlib.pyplot as plt
+import numpy as np
+
+import hamsolver
+
 os.makedirs("plots", exist_ok=True)
 
-# RHS of Kepler Hamiltonian system
-def hamiltonian_rhs(t, y):
-    x, y_, px, py = y
-    r3 = (x**2 + y_**2)**1.5
-    return np.array([px, py, -x / r3, -y_ / r3])
+# ---------------------------------------------------------------------------
+# Setup
+# ---------------------------------------------------------------------------
 
-def compute_energy(x, y, px, py):
-    r = np.sqrt(x**2 + y**2)
-    return 0.5 * (px**2 + py**2) - 1.0 / r
-
-def compute_L(x, y, px, py):
-    return x * py - y * px
-
-# Initial conditions
 eps = 0.3
 y0 = np.array([1 - eps, 0.0, 0.0, np.sqrt((1 + eps) / (1 - eps))])
 t0, tf, steps = 0.0, 2 * np.pi, 10000
-dt = (tf-t0) /steps
+dt = (tf - t0) / steps
 ts = np.linspace(t0, tf, steps + 1)
 H_exact = -0.5
+L_exact = np.sqrt(1 - eps**2)
 
 methods = [
-    ("RK4", hamsolver.RK4_method),
-    ("Heun", hamsolver.Heun_method),
-    ("Implicit Midpoint", hamsolver.Implicit_midpoint_method),
-    ("Trapezoidal", hamsolver.Trapezoidal_method),
-    ("Gauss-Legendre", hamsolver.Gauss_Legendre_method),
-    ("LobattoIIIA", hamsolver.LobattoIIIA_method)
+    ("RK4",               hamsolver.RK4),
+    ("RK4 (3/8-rule)",    hamsolver.RK4_38),
+    ("Heun",              hamsolver.Heun),
+    ("Implicit Midpoint", hamsolver.Implicit_midpoint),
+    ("Trapezoidal",       hamsolver.Trapezoidal),
+    ("Gauss-Legendre",    hamsolver.Gauss_Legendre),
+    ("LobattoIIIA",       hamsolver.LobattoIIIA),
 ]
 
-# Plot energy
+# ---------------------------------------------------------------------------
+# Integrate each method ONCE; reuse the trajectory for both diagnostics.
+# ---------------------------------------------------------------------------
+
+trajectories = {}
+for name, table in methods:
+    _times, states = hamsolver.runge_kutta(
+        table=table, f=hamsolver.kepler_rhs,
+        yn=y0, t0=t0, dt=dt, steps=steps, max_iter=10,
+    )
+    trajectories[name] = np.asarray(states)
+
+# ---------------------------------------------------------------------------
+# Energy
+# ---------------------------------------------------------------------------
+
 plt.figure()
-for name, method in methods:
-    result = method(hamiltonian_rhs, y0, t0, dt, steps, 10)
-    x, y_, px, py = result.T
-    H = compute_energy(x, y_, px, py)
+for name, traj in trajectories.items():
+    x, y_, px, py = traj.T
+    r = np.sqrt(x * x + y_ * y_)
+    H = 0.5 * (px * px + py * py) - 1.0 / r
     plt.plot(ts, H, label=name)
-plt.axhline(H_exact, linestyle='--', color='k', label='Exact -0.5')
+plt.axhline(H_exact, linestyle="--", color="k", label="Exact -0.5")
 plt.title("Energy over time")
 plt.xlabel("t")
 plt.ylabel("H(t)")
@@ -52,14 +66,16 @@ plt.grid(True)
 plt.tight_layout()
 plt.savefig("plots/energy_methods.pdf")
 
-# Plot angular momentum
+# ---------------------------------------------------------------------------
+# Angular momentum
+# ---------------------------------------------------------------------------
+
 plt.figure()
-for name, method in methods:
-    result = method(hamiltonian_rhs, y0, t0, dt, steps, 10)
-    x, y_, px, py = result.T
-    L = compute_L(x, y_, px, py)
+for name, traj in trajectories.items():
+    x, y_, px, py = traj.T
+    L = x * py - y_ * px
     plt.plot(ts, L, label=name)
-plt.axhline(np.sqrt(1 - eps**2), linestyle='--', color='k', label='Exact L')
+plt.axhline(L_exact, linestyle="--", color="k", label=f"Exact {L_exact:.4f}")
 plt.title("Angular Momentum over time")
 plt.xlabel("t")
 plt.ylabel("L(t)")
@@ -68,4 +84,4 @@ plt.grid(True)
 plt.tight_layout()
 plt.savefig("plots/angular_momentum_methods.pdf")
 
-print("Saved: plots/energy_methods.pdf and angular_momentum_methods.pdf")
+print("Saved: plots/energy_methods.pdf and plots/angular_momentum_methods.pdf")
