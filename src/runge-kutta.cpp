@@ -124,14 +124,15 @@ std::tuple<std::vector<double>, std::vector<std::vector<double>>> runge_kutta(
 }
 
 // --- 2. Adaptive Runge-Kutta ---
-std::tuple<std::vector<double>, std::vector<std::vector<double>>>
+std::tuple<std::vector<double>, std::vector<std::vector<double>>,
+           std::vector<double>, std::vector<std::vector<double>>>
 adaptive_runge_kutta(const ButcherTableau &table,
                      const std::function<std::vector<double>(
                          double, const std::vector<double> &)> &f,
                      std::vector<double> yn, double t0, double tf,
                      double initial_dt, double tolerance, int max_iter,
-                     double dt_out) {
-
+                     double dt_out, const EventFunc &event_fn,
+                     bool stop_on_event) {
   std::vector<double> times;
   std::vector<std::vector<double>> states;
 
@@ -163,6 +164,8 @@ adaptive_runge_kutta(const ButcherTableau &table,
   std::vector<double> y_star(dim, 0.0);
   std::vector<double> f0(dim, 0.0);
   std::vector<double> f1(dim, 0.0);
+  std::vector<double> event_times;
+  std::vector<std::vector<double>> event_states;
 
   while (t < tf) {
     if (t + dt > tf)
@@ -262,32 +265,100 @@ adaptive_runge_kutta(const ButcherTableau &table,
 
     double scale = safety * std::pow(tolerance / max_error, 1.0 / 3.0);
 
+    // Remember to add these two variables near the top of the function next to
+    // `times` and `states`! std::vector<double> event_times;
+    // std::vector<std::vector<double>> event_states;
+
     if (max_error <= tolerance) {
       // --- STEP ACCEPTED ---
-      if (use_dense_output) {
-        f0 = f(t, yn);
-        f1 = f(t + dt, y_next);
-        while (t_out_next <= t + dt && t_out_next <= tf) {
-          std::vector<double> y_interp = utils::cubic_hermite_interpolate(
-              yn, y_next, f0, f1, t, dt, t_out_next);
-          times.push_back(t_out_next);
-          states.push_back(y_interp);
-          t_out_next += dt_out;
+
+      // Calculate derivatives at the boundaries for the Spline
+      f0 = f(t, yn);
+      f1 = f(t + dt, y_next);
+
+      // ==========================================
+      // EVENT DETECTION (Root-Finding)
+      // ==========================================
+      bool event_triggered = false;
+      if (event_fn) {
+        double g0 = event_fn(t, yn);
+        double g1 = event_fn(t + dt, y_next);
+
+        // A sign change means we crossed the event threshold!
+        if (g0 * g1 <= 0.0) {
+          event_triggered = true;
+          double t_left = t;
+          double t_right = t + dt;
+          double g_left = g0;
+          double t_mid = t;
+          std::vector<double> y_mid(dim, 0.0);
+
+          // Bisection Root Finder using the Dense Output Spline
+          for (int iter = 0; iter < 50; ++iter) {
+            t_mid = t_left + 0.5 * (t_right - t_left);
+            y_mid = utils::cubic_hermite_interpolate(yn, y_next, f0, f1, t, dt,
+                                                     t_mid);
+            double g_mid = event_fn(t_mid, y_mid);
+
+            // Did we find the exact root?
+            if (std::abs(g_mid) < 1e-12 || (t_right - t_left) < 1e-12)
+              break;
+
+            if (g_left * g_mid <= 0.0) {
+              t_right = t_mid;
+            } else {
+              t_left = t_mid;
+              g_left = g_mid;
+            }
+          }
+
+          event_times.push_back(t_mid);
+          event_states.push_back(y_mid);
+
+          if (stop_on_event) {
+            // Save the final frames precisely up to the event, then kill the
+            // simulation
+            if (use_dense_output) {
+              while (t_out_next <= t_mid) {
+                std::vector<double> y_interp = utils::cubic_hermite_interpolate(
+                    yn, y_next, f0, f1, t, dt, t_out_next);
+                times.push_back(t_out_next);
+                states.push_back(y_interp);
+                t_out_next += dt_out;
+              }
+            } else {
+              times.push_back(t_mid);
+              states.push_back(y_mid);
+            }
+            break; // EXIT THE WHILE LOOP!
+          }
         }
-      } else {
-        times.push_back(t + dt);
-        states.push_back(y_next);
+      }
+
+      // ==========================================
+      // DENSE OUTPUT (If the event didn't stop us)
+      // ==========================================
+      if (!event_triggered || !stop_on_event) {
+        if (use_dense_output) {
+          while (t_out_next <= t + dt && t_out_next <= tf) {
+            std::vector<double> y_interp = utils::cubic_hermite_interpolate(
+                yn, y_next, f0, f1, t, dt, t_out_next);
+            times.push_back(t_out_next);
+            states.push_back(y_interp);
+            t_out_next += dt_out;
+          }
+        } else {
+          times.push_back(t + dt);
+          states.push_back(y_next);
+        }
       }
 
       yn = y_next;
       t += dt;
       dt *= std::min(2.0, scale);
-    } else {
-      // --- STEP REJECTED ---
-      dt *= std::max(0.2, scale);
     }
   }
 
-  return {times, states};
+  return {times, states, event_times, event_states};
 }
 } // namespace rungekutta

@@ -49,14 +49,19 @@ std::tuple<std::vector<double>, std::vector<std::vector<double>>> runge_kutta(
     std::vector<double> yn, double t0, double dt, size_t steps,
     int max_iter = 10);
 
-// Adaptive solver
-std::tuple<std::vector<double>, std::vector<std::vector<double>>>
+// The Python Callback: Takes (time, state), returns a single double.
+using EventFunc = std::function<double(double, const std::vector<double> &)>;
+
+// Updated Adaptive solver
+std::tuple<std::vector<double>, std::vector<std::vector<double>>,
+           std::vector<double>, std::vector<std::vector<double>>>
 adaptive_runge_kutta(const ButcherTableau &table,
                      const std::function<std::vector<double>(
                          double, const std::vector<double> &)> &f,
                      std::vector<double> yn, double t0, double tf,
                      double initial_dt, double tolerance, int max_iter = 10,
-                     double dt_out = 0.0);
+                     double dt_out = 0.0, const EventFunc &event_fn = nullptr,
+                     bool stop_on_event = false);
 }; // namespace rungekutta
 
 namespace methods {

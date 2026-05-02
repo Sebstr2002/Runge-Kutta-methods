@@ -137,7 +137,7 @@ TEST_CASE("Adaptive RK (BS32) hits target correctly",
   double t0 = 0.0, tf = 1.0, initial_dt = 0.1, tol = 1e-5;
 
   // Notice we can unpack C++ tuples beautifully using structured bindings!
-  auto [times, states] = rungekutta::adaptive_runge_kutta(
+  auto [times, states, ev_times, ev_states] = rungekutta::adaptive_runge_kutta(
       methods::BS32_tableau, exp_decay, y0, t0, tf, initial_dt, tol, 50, 0.0);
 
   double expected = std::exp(-1.0);
@@ -155,7 +155,7 @@ TEST_CASE("Dense Output generates evenly spaced frames",
   double t0 = 0.0, tf = 1.0, initial_dt = 0.1, tol = 1e-5;
   double dt_out = 0.25; // We want exactly 4 frame gaps!
 
-  auto [times, states] =
+  auto [times, states, ev_times, ev_states] =
       rungekutta::adaptive_runge_kutta(methods::BS32_tableau, exp_decay, y0, t0,
                                        tf, initial_dt, tol, 50, dt_out);
 

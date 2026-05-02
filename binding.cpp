@@ -32,12 +32,13 @@ PYBIND11_MODULE(hamsolver, m) {
 
   // Adaptive RK (Notice the fixed name and new dt_out argument!)
   m.def("adaptive_runge_kutta", &rungekutta::adaptive_runge_kutta,
-        "Adaptive RK solver with Dense Output", py::arg("table"), py::arg("f"),
-        py::arg("yn"), py::arg("t0"), py::arg("tf"), py::arg("initial_dt"),
-        py::arg("tolerance"), py::arg("max_iter") = 10,
-        py::arg("dt_out") = 0.0);
+        "Adaptive RK solver with Dense Output & Events", py::arg("table"),
+        py::arg("f"), py::arg("yn"), py::arg("t0"), py::arg("tf"),
+        py::arg("initial_dt"), py::arg("tolerance"), py::arg("max_iter") = 10,
+        py::arg("dt_out") = 0.0,
+        py::arg("event_fn") = nullptr,     // Defaults to no event
+        py::arg("stop_on_event") = false); // Defaults to just tracking
 
-  // Expose the raw interpolator just in case the Python user ever wants it
   m.def("cubic_hermite_interpolate", &utils::cubic_hermite_interpolate,
         "Interpolate states between RK steps");
   // 3. Export tableaus as module-level constants
