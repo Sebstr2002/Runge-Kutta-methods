@@ -16,7 +16,7 @@ print("Custom Tableau valid?", custom_rk2.is_valid())
 # --- 2. Setup the Double Pendulum ---
 # y = [theta1, theta2, p_theta1, p_theta2]
 # Let's start it completely horizontal!
-y0 = [np.pi / 2, np.pi / 2, 0.0, 0.0]
+y0 = [np.pi / 4, np.pi / 4, 0.0, 0.0]
 
 t0 = 0.0
 tf = 20.0  # Simulate 20 seconds of chaos
@@ -24,7 +24,7 @@ fps = 60
 dt_out = 1.0 / fps  # Exactly 60 frames per second!
 
 print(f"\nRunning Adaptive BS32 Solver to {tf}s...")
-times, states = hamsolver.adaptive_runge_kutta(
+times, states, _, _ = hamsolver.adaptive_runge_kutta(
     table=hamsolver.BS32,
     f=hamsolver.double_pendulum_rhs,
     yn=y0,

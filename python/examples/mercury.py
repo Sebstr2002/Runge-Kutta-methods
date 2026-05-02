@@ -12,7 +12,7 @@ y0 = [0.47, 0.0, 0.0, 1.2]
 t0 = 0.0
 tf = 150.0  
 fps = 60
-dt_out = 0.05  # Dense output frame step
+dt_out = 0.005  # Dense output frame step
 
 print(f"Calculating Relativistic Orbit to t={tf}s using Adaptive BS32...")
 
@@ -64,7 +64,7 @@ def init():
 
 # To make it render faster, we can skip frames or draw multiple steps per frame.
 # Let's draw 3 steps per frame so the animation flies around the sun!
-speedup = 3 
+speedup = 3
 
 def update(frame):
     # Calculate the actual index based on speedup

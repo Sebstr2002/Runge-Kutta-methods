@@ -1,4 +1,4 @@
-.PHONY: all build install clean test
+.PHONY: all build install clean test rebuild reinstall
 
 all: build
 
@@ -21,3 +21,5 @@ clean:
 	@echo "Cleaning build artifacts..."
 	rm -rf build
 	rm -f python/examples/hamsolver.so
+rebuild: clean build
+reinstall: clean install
