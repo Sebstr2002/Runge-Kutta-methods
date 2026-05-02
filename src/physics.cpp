@@ -137,4 +137,26 @@ std::vector<double> mercury_gr_rhs(double t, const std::vector<double> &y_) {
 
   return {dx, dy, dpx, dpy};
 }
+
+// --- 6. Damped Simple Pendulum ---
+std::vector<double> damped_pendulum_rhs(double t,
+                                        const std::vector<double> &y_) {
+  // Phase space: angle (theta) and angular velocity (omega)
+  double theta = y_[0];
+  double omega = y_[1];
+
+  // Physical constants
+  const double g = 9.81; // Gravity
+  const double L = 1.0;  // Length of the pendulum
+  const double c = 0.5;  // Damping coefficient (Friction)
+
+  // dq/dt = velocity
+  double d_theta = omega;
+
+  // dp/dt = force (-gravity component - friction)
+  // equation: L * d(omega)/dt = -g * sin(theta) - c * L * omega
+  double d_omega = -(g / L) * std::sin(theta) - c * omega;
+
+  return {d_theta, d_omega};
+}
 } // namespace physics

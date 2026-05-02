@@ -21,4 +21,8 @@ std::vector<double> cr3bp_rhs(double t, const std::vector<double> &y_);
 // y = [x, y, px, py]
 std::vector<double> mercury_gr_rhs(double t, const std::vector<double> &y_);
 
+// 6. Damped Simple Pendulum
+// y = [theta, omega] (angle and angular velocity)
+std::vector<double> damped_pendulum_rhs(double t,
+                                        const std::vector<double> &y_);
 } // namespace physics

@@ -31,7 +31,14 @@ PYBIND11_MODULE(hamsolver, m) {
   // 4. Export the C++ physics RHS
   m.def("kepler_rhs", &physics::kepler_rhs,
         "Kepler problem RHS (C++ optimized)");
-
   m.def("sun_earth_moon_rhs", &physics::sun_earth_moon_rhs,
         "2D Sun-Earth-Moon RHS (C++ optimized)");
+  m.def("double_pendulum_rhs", &physics::double_pendulum_rhs,
+        "Hamiltonian Double Pendulum");
+  m.def("cr3bp_rhs", &physics::cr3bp_rhs,
+        "Circular Restricted 3-Body Problem (Rotating Frame)");
+  m.def("mercury_gr_rhs", &physics::mercury_gr_rhs,
+        "Post-Newtonian General Relativity");
+  m.def("damped_pendulum_rhs", &physics::damped_pendulum_rhs,
+        "Damped Simple Pendulum with friction");
 }
