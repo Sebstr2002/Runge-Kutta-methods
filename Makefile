@@ -9,8 +9,8 @@ build:
 
 install: build
 	@echo "Installing module to python/ directory..."
-	mkdir -p python
-	cp build/hamsolver.so python/sem/
+	mkdir -p python/examples
+	cp build/hamsolver.so python/examples/
 	@echo "Done! You can now 'import hamsolver' from the python/ directory."
 
 test: build
@@ -20,4 +20,4 @@ test: build
 clean:
 	@echo "Cleaning build artifacts..."
 	rm -rf build
-	rm -f python/hamsolver.so
+	rm -f python/examples/hamsolver.so

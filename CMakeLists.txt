@@ -19,6 +19,7 @@ add_library(hamsolver_core STATIC
     src/butcher-tableau.cpp
     src/runge-kutta.cpp
     src/physics.cpp
+    src/utils.cpp
 )
 target_include_directories(hamsolver_core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set_target_properties(hamsolver_core PROPERTIES POSITION_INDEPENDENT_CODE ON)

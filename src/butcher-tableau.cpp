@@ -27,11 +27,26 @@ ButcherTableau::ButcherTableau(std::vector<std::vector<double>> A_,
   }
 }
 
+ButcherTableau::ButcherTableau(std::vector<std::vector<double>> A_,
+                               std::vector<double> b_, std::vector<double> c_,
+                               std::vector<double> bstar_) {
+  implicit = checkImplicit(A_);
+  A = std::move(A_);
+  b = std::move(b_);
+  c = std::move(c_);
+  b_star = std::move(bstar_);
+  is_embedded = true;
+
+  if (!isValid()) {
+    throw std::invalid_argument("Invalid arguments");
+  }
+}
 // --- Getters ---
 const std::vector<std::vector<double>> &ButcherTableau::getA() const {
   return A;
 }
 const std::vector<double> &ButcherTableau::getB() const { return b; }
+const std::vector<double> &ButcherTableau::getB_star() const { return b_star; }
 const std::vector<double> &ButcherTableau::getC() const { return c; }
 bool ButcherTableau::isImplicit() const { return implicit; }
 
@@ -95,4 +110,16 @@ const ButcherTableau LobattoIIIA_tableau({{0.0, 0.0, 0.0},
                                           {1.0 / 6.0, 2.0 / 3.0, 1.0 / 6.0}},
                                          {1.0 / 6.0, 2.0 / 3.0, 1.0 / 6.0},
                                          {0.0, 0.5, 1.0});
+const ButcherTableau BS32_tableau(
+    // A matrix
+    {{0.0, 0.0, 0.0, 0.0},
+     {1.0 / 2.0, 0.0, 0.0, 0.0},
+     {0.0, 3.0 / 4.0, 0.0, 0.0},
+     {2.0 / 9.0, 1.0 / 3.0, 4.0 / 9.0, 0.0}},
+    // b vector (3rd order - use this to advance the simulation)
+    {2.0 / 9.0, 1.0 / 3.0, 4.0 / 9.0, 0.0},
+    // c vector
+    {0.0, 1.0 / 2.0, 3.0 / 4.0, 1.0},
+    // b_star vector (2nd order - use this just to check the error)
+    {7.0 / 24.0, 1.0 / 4.0, 1.0 / 3.0, 1.0 / 8.0});
 } // namespace methods

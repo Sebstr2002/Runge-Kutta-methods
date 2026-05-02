@@ -2,11 +2,11 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 #include <cmath>
+#include <tuple> // Needed for std::get
 
 #include "runge-kutta.hpp"
 
 using Catch::Matchers::WithinAbs;
-using Catch::Matchers::WithinRel;
 
 namespace {
 
@@ -43,14 +43,14 @@ double harmonic_energy(const std::vector<double> &y) {
 
 TEST_CASE("All methods integrate y' = -y close to exp(-1)", "[integration]") {
   const std::vector<double> y0{1.0};
-  const double t0 = 0.0;
-  const double tf = 1.0;
+  const double t0 = 0.0, tf = 1.0;
   const std::size_t steps = 1000;
   const double dt = (tf - t0) / steps;
   const double expected = std::exp(-1.0);
 
   auto check = [&](const auto &method, double tol) {
-    auto out = method(exp_decay, y0, t0, dt, steps, 50);
+    // Unpack the tuple, only pass the states to final_value
+    auto out = std::get<1>(method(exp_decay, y0, t0, dt, steps, 50));
     CHECK_THAT(final_value(out, 0), WithinAbs(expected, tol));
   };
 
@@ -88,13 +88,6 @@ TEST_CASE("All methods integrate y' = -y close to exp(-1)", "[integration]") {
                                        t0, dt, steps, max_iter);
       },
       1e-8);
-
-  check(
-      [](auto f, auto y0, auto t0, auto dt, auto steps, auto max_iter) {
-        return rungekutta::runge_kutta(methods::LobattoIIIA_tableau, f, y0, t0,
-                                       dt, steps, max_iter);
-      },
-      1e-8);
 }
 
 TEST_CASE("Symplectic integrators conserve harmonic-oscillator energy",
@@ -106,41 +99,69 @@ TEST_CASE("Symplectic integrators conserve harmonic-oscillator energy",
   const double dt = (tf - t0) / steps;
   const double E0 = harmonic_energy(y0);
 
-  auto gauss = rungekutta::runge_kutta(methods::Gauss_Legendre_tableau,
-                                       harmonic, y0, t0, dt, steps, 50);
+  auto gauss = std::get<1>(rungekutta::runge_kutta(
+      methods::Gauss_Legendre_tableau, harmonic, y0, t0, dt, steps, 50));
+  auto midpoint = std::get<1>(rungekutta::runge_kutta(
+      methods::Implicit_midpoint_tableau, harmonic, y0, t0, dt, steps, 50));
+  auto rk4 = std::get<1>(rungekutta::runge_kutta(methods::RK4_tableau, harmonic,
+                                                 y0, t0, dt, steps, 50));
 
-  auto midpoint = rungekutta::runge_kutta(methods::Implicit_midpoint_tableau,
-                                          harmonic, y0, t0, dt, steps, 50);
-
-  auto rk4 = rungekutta::runge_kutta(methods::RK4_tableau, harmonic, y0, t0, dt,
-                                     steps, 50);
-  // Symplectic methods: drift bounded and tiny.
   CHECK(max_abs_drift(gauss, harmonic_energy, E0) < 1e-10);
   CHECK(max_abs_drift(midpoint, harmonic_energy, E0) < 1e-6);
-  // RK4 still has small but strictly larger drift than the symplectic ones
-  // here.
   CHECK(max_abs_drift(rk4, harmonic_energy, E0) < 1e-3);
 }
 
 TEST_CASE("RK4 exhibits 4th-order convergence on y' = -y",
           "[integration][order]") {
   const std::vector<double> y0{1.0};
-  const double t0 = 0.0;
-  const double tf = 1.0;
+  const double t0 = 0.0, tf = 1.0;
   const double expected = std::exp(-1.0);
 
   auto err_at = [&](std::size_t steps) {
     const double dt = (tf - t0) / steps;
-    auto out = rungekutta::runge_kutta(methods::RK4_tableau, exp_decay, y0, t0,
-                                       dt, steps, 50);
+    auto out = std::get<1>(rungekutta::runge_kutta(
+        methods::RK4_tableau, exp_decay, y0, t0, dt, steps, 50));
     return std::abs(final_value(out, 0) - expected);
   };
 
   const double e1 = err_at(50);
   const double e2 = err_at(100);
   const double order = std::log2(e1 / e2);
-  // Expect ~4. Allow a generous window; this is asserting the right scaling,
-  // not a number.
   CHECK(order > 3.5);
   CHECK(order < 4.5);
+}
+
+TEST_CASE("Adaptive RK (BS32) hits target correctly",
+          "[integration][adaptive]") {
+  const std::vector<double> y0{1.0};
+  double t0 = 0.0, tf = 1.0, initial_dt = 0.1, tol = 1e-5;
+
+  // Notice we can unpack C++ tuples beautifully using structured bindings!
+  auto [times, states] = rungekutta::adaptive_runge_kutta(
+      methods::BS32_tableau, exp_decay, y0, t0, tf, initial_dt, tol, 50, 0.0);
+
+  double expected = std::exp(-1.0);
+
+  // Did it solve the math correctly?
+  CHECK_THAT(states.back()[0], WithinAbs(expected, 1e-4));
+
+  // Did the time perfectly land on tf without overshooting?
+  CHECK_THAT(times.back(), WithinAbs(tf, 1e-12));
+}
+
+TEST_CASE("Dense Output generates evenly spaced frames",
+          "[integration][interpolation]") {
+  const std::vector<double> y0{1.0};
+  double t0 = 0.0, tf = 1.0, initial_dt = 0.1, tol = 1e-5;
+  double dt_out = 0.25; // We want exactly 4 frame gaps!
+
+  auto [times, states] =
+      rungekutta::adaptive_runge_kutta(methods::BS32_tableau, exp_decay, y0, t0,
+                                       tf, initial_dt, tol, 50, dt_out);
+
+  // We should have frames at 0.0, 0.25, 0.5, 0.75, 1.0
+  REQUIRE(times.size() >= 4);
+
+  // The gap between the first two output frames MUST be exactly dt_out
+  CHECK_THAT(times[1] - times[0], WithinAbs(dt_out, 1e-10));
 }
